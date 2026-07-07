@@ -14,8 +14,14 @@ connectDB();
 const app = express();
 
 // Middlewares
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://lead-management-system-1-wana.onrender.com',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(cookieParser());
@@ -50,10 +56,11 @@ app.post('/api/auth/login', (req, res) => {
       expiresIn: '24h',
     });
     
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
     
@@ -66,10 +73,11 @@ app.post('/api/auth/login', (req, res) => {
 // @desc    Admin logout
 // @route   POST /api/auth/logout
 app.post('/api/auth/logout', (req, res) => {
+  const isProduction = process.env.NODE_ENV === 'production';
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
   });
   res.json({ success: true, message: 'Logged out successfully' });
 });
