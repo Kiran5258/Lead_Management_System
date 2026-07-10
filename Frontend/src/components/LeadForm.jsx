@@ -43,6 +43,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
   const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [activeTab, setActiveTab] = useState(0);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize form when editing a lead
   useEffect(() => {
@@ -63,33 +64,12 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
     }
     setActiveTab(0);
     setErrors({});
+    setIsSubmitting(false);
   }, [lead]);
 
-  // Real-time calculations for financial maths
-  useEffect(() => {
-    const qPrice = Number(formData.quotedPrice) || 0;
-    const disc = Number(formData.discount) || 0;
-    const finalPrice = qPrice - disc;
-
-    const payout = Number(formData.providerPayout) || 0;
-    const travel = Number(formData.travelCost) || 0;
-    const material = Number(formData.materialCost) || 0;
-    const other = Number(formData.otherExpenses) || 0;
-    const grossProfit = finalPrice - payout - travel - material - other;
-
-    setFormData(prev => ({
-      ...prev,
-      finalPrice,
-      grossProfit
-    }));
-  }, [
-    formData.quotedPrice,
-    formData.discount,
-    formData.providerPayout,
-    formData.travelCost,
-    formData.materialCost,
-    formData.otherExpenses
-  ]);
+  // Calculate financial maths in real-time during render
+  const finalPrice = (Number(formData.quotedPrice) || 0) - (Number(formData.discount) || 0);
+  const grossProfit = finalPrice - (Number(formData.providerPayout) || 0) - (Number(formData.travelCost) || 0) - (Number(formData.materialCost) || 0) - (Number(formData.otherExpenses) || 0);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -107,17 +87,17 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
   const validateTab = (tabIndex) => {
     const tempErrors = {};
     if (tabIndex === 0) {
-      if (!formData.customerName.trim()) tempErrors.customerName = 'Customer Name is required';
-      if (!formData.phoneNumber.trim()) tempErrors.phoneNumber = 'Phone Number is required';
-      if (!formData.area.trim()) tempErrors.area = 'Area is required';
-      if (!formData.pincode.trim()) tempErrors.pincode = 'Pincode is required';
+      if (!(formData.customerName || '').trim()) tempErrors.customerName = 'Customer Name is required';
+      if (!(formData.phoneNumber || '').trim()) tempErrors.phoneNumber = 'Phone Number is required';
+      if (!(formData.area || '').trim()) tempErrors.area = 'Area is required';
+      if (!(formData.pincode || '').trim()) tempErrors.pincode = 'Pincode is required';
     } else if (tabIndex === 1) {
-      if (!formData.serviceRequested.trim()) tempErrors.serviceRequested = 'Service requested is required';
-      if (formData.bookingStatus === 'Non-Booking' && !formData.nonBookingReason.trim()) {
+      if (!(formData.serviceRequested || '').trim()) tempErrors.serviceRequested = 'Service requested is required';
+      if (formData.bookingStatus === 'Non-Booking' && !(formData.nonBookingReason || '').trim()) {
         tempErrors.nonBookingReason = 'Reason is required for non-bookings';
       }
     } else if (tabIndex === 2) {
-      if (formData.complaint === 'Y' && !formData.complaintDetails.trim()) {
+      if (formData.complaint === 'Y' && !(formData.complaintDetails || '').trim()) {
         tempErrors.complaintDetails = 'Please provide details for the complaint';
       }
     }
@@ -139,9 +119,31 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validate all tabs up to the current active tab
+    // Prevent double submission
+    if (isSubmitting) return;
+
+    // Prevent saving if we are not on the final tab (activeTab < 3)
+    if (activeTab < 3) {
+      let firstInvalidTab = -1;
+      // Check which preceding tab (up to current) is invalid
+      for (let i = 0; i <= activeTab; i++) {
+        if (!validateTab(i)) {
+          firstInvalidTab = i;
+          break;
+        }
+      }
+      if (firstInvalidTab !== -1) {
+        setActiveTab(firstInvalidTab);
+      } else {
+        // Move to the next tab if current tabs are valid
+        setActiveTab(prev => Math.min(prev + 1, 3));
+      }
+      return;
+    }
+
+    // On the final tab, validate ALL tabs (0, 1, 2, 3) to ensure all sections are complete
     let isValid = true;
-    for (let i = 0; i <= activeTab; i++) {
+    for (let i = 0; i < tabs.length; i++) {
       if (!validateTab(i)) {
         setActiveTab(i);
         isValid = false;
@@ -150,7 +152,49 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
     }
 
     if (isValid) {
-      onSave(formData);
+      setIsSubmitting(true);
+      const submissionData = { ...formData };
+      
+      // Clean up empty string enums to prevent mongoose validation issues with null or empty strings
+      if (!submissionData.bookingStatus) submissionData.bookingStatus = 'Pending';
+      if (!submissionData.jobStatus) submissionData.jobStatus = 'Pending';
+      if (!submissionData.paymentStatus) submissionData.paymentStatus = 'Pending';
+      if (!submissionData.paymentMethod) submissionData.paymentMethod = 'N/A';
+      if (!submissionData.repeatCustomer) submissionData.repeatCustomer = 'N';
+      if (!submissionData.complaint) submissionData.complaint = 'N';
+
+      // Clean up and format financial and numeric values
+      const qPrice = Number(submissionData.quotedPrice) || 0;
+      const disc = Number(submissionData.discount) || 0;
+      const finalPriceValue = qPrice - disc;
+
+      const payout = Number(submissionData.providerPayout) || 0;
+      const travel = Number(submissionData.travelCost) || 0;
+      const material = Number(submissionData.materialCost) || 0;
+      const other = Number(submissionData.otherExpenses) || 0;
+      const grossProfitValue = finalPriceValue - payout - travel - material - other;
+
+      submissionData.quotedPrice = qPrice;
+      submissionData.discount = disc;
+      submissionData.finalPrice = finalPriceValue;
+      submissionData.providerPayout = payout;
+      submissionData.travelCost = travel;
+      submissionData.materialCost = material;
+      submissionData.otherExpenses = other;
+      submissionData.grossProfit = grossProfitValue;
+
+      // Clean up empty string dates to null so Mongoose parses them correctly
+      const dateFields = ['leadDate', 'nextFollowUpDate', 'bookingDate', 'serviceDate'];
+      dateFields.forEach(field => {
+        if (!submissionData[field]) {
+          submissionData[field] = null;
+        }
+      });
+
+      Promise.resolve(onSave(submissionData))
+        .finally(() => {
+          setIsSubmitting(false);
+        });
     }
   };
 
@@ -182,7 +226,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
               key={idx}
               className={`step-tab ${activeTab === idx ? 'active' : ''}`}
               onClick={() => {
-                if (validateTab(activeTab) || idx < activeTab) {
+                if (!isSubmitting && (validateTab(activeTab) || idx < activeTab)) {
                   setActiveTab(idx);
                 }
               }}
@@ -207,7 +251,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
                   name="customerName"
                   value={formData.customerName}
                   onChange={handleChange}
-                  placeholder="e.g. John Doe"
+                  placeholder="e.g. Kiran Kumar"
                   className="glass-input"
                 />
                 {errors.customerName && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{errors.customerName}</span>}
@@ -386,7 +430,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
                   name="assignedEmployee"
                   value={formData.assignedEmployee}
                   onChange={handleChange}
-                  placeholder="e.g. Agent Riya"
+                  placeholder="e.g. Suga Dev"
                   className="glass-input"
                 />
               </div>
@@ -398,7 +442,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
                   name="assignedProvider"
                   value={formData.assignedProvider}
                   onChange={handleChange}
-                  placeholder="e.g. Tech Services Ltd."
+                  placeholder="e.g. Gigiman Provider"
                   className="glass-input"
                 />
               </div>
@@ -569,7 +613,7 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
                   fontWeight: 700,
                   color: 'var(--primary)'
                 }}>
-                  ₹{formData.finalPrice}
+                  ₹{finalPrice}
                 </div>
               </div>
             </div>
@@ -658,12 +702,12 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Gross Profit (₹) [Auto]</label>
                 <div className="glass-input number-font" style={{
-                  backgroundColor: formData.grossProfit >= 0 ? 'var(--bg-completed)' : 'var(--bg-nonbooking)',
+                  backgroundColor: grossProfit >= 0 ? 'var(--bg-completed)' : 'var(--bg-nonbooking)',
                   fontWeight: 800,
-                  color: formData.grossProfit >= 0 ? 'var(--color-completed)' : 'var(--color-nonbooking)',
+                  color: grossProfit >= 0 ? 'var(--color-completed)' : 'var(--color-nonbooking)',
                   border: 'none'
                 }}>
-                  ₹{formData.grossProfit}
+                  ₹{grossProfit}
                 </div>
               </div>
             </div>
@@ -693,27 +737,22 @@ const LeadForm = ({ lead, onSave, onCancel }) => {
         }}>
           <div>
             {activeTab > 0 && (
-              <button type="button" className="btn btn-secondary" onClick={handlePrev}>
+              <button type="button" className="btn btn-secondary" onClick={handlePrev} disabled={isSubmitting}>
                 <ArrowLeft size={16} /> Back
               </button>
             )}
           </div>
           
           <div style={{ display: 'flex', gap: '12px' }}>
-            {/* Allow direct Save & Close at Section 3 (activeTab === 2) */}
-            {activeTab === 2 && (
-              <button type="submit" className="btn btn-secondary" style={{ borderColor: 'var(--border-focus)', fontWeight: 700 }}>
-                <Save size={16} /> Save & Close
-              </button>
-            )}
+
 
             {activeTab < 3 ? (
-              <button type="button" className="btn btn-primary" onClick={handleNext}>
+              <button key="btn-continue" type="button" className="btn btn-primary" onClick={handleNext} disabled={isSubmitting}>
                 Continue <ArrowRight size={16} />
               </button>
             ) : (
-              <button type="submit" className="btn btn-primary">
-                <Save size={16} /> {lead ? 'Save Lead Changes' : 'Submit Lead Record'}
+              <button key="btn-submit" type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                <Save size={16} /> {isSubmitting ? 'Saving...' : (lead ? 'Save Lead Changes' : 'Submit Lead Record')}
               </button>
             )}
           </div>

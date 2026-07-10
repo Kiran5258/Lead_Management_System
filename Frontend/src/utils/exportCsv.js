@@ -20,17 +20,16 @@ export const exportLeadsToCsv = (leads) => {
     { label: 'Phone Number', key: 'phoneNumber', type: 'string' }, // String type prevents Excel dropping leading zeroes
     { label: 'Area', key: 'area', type: 'string' },
     { label: 'Pincode', key: 'pincode', type: 'string' },
+    { label: 'Repeat Customer (Y/N)', key: 'repeatCustomer', type: 'string' },
     { label: 'Lead Source', key: 'leadSource', type: 'string' },
     { label: 'Campaign Name', key: 'campaignName', type: 'string' },
     { label: 'Service Requested', key: 'serviceRequested', type: 'string' },
     { label: 'Booking Status', key: 'bookingStatus', type: 'string' },
     { label: 'Non-Booking Reason', key: 'nonBookingReason', type: 'string' },
     { label: 'Follow-up Status', key: 'followUpStatus', type: 'string' },
+    { label: 'Next Follow-up Date', key: 'nextFollowUpDate', type: 'date' },
     { label: 'Assigned Employee', key: 'assignedEmployee', type: 'string' },
     { label: 'Assigned Provider', key: 'assignedProvider', type: 'string' },
-    { label: 'Quoted Price (₹)', key: 'quotedPrice', type: 'number' },
-    { label: 'Discount (₹)', key: 'discount', type: 'number' },
-    { label: 'Final Price (₹)', key: 'finalPrice', type: 'number' },
     { label: 'Booking Date', key: 'bookingDate', type: 'date' },
     { label: 'Service Date', key: 'serviceDate', type: 'date' },
     { label: 'Service Start Time', key: 'serviceStartTime', type: 'string' },
@@ -40,6 +39,9 @@ export const exportLeadsToCsv = (leads) => {
     { label: 'Customer Review', key: 'customerReview', type: 'string' },
     { label: 'Complaint (Y/N)', key: 'complaint', type: 'string' },
     { label: 'Complaint Details', key: 'complaintDetails', type: 'string' },
+    { label: 'Quoted Price (₹)', key: 'quotedPrice', type: 'number' },
+    { label: 'Discount (₹)', key: 'discount', type: 'number' },
+    { label: 'Final Price (₹)', key: 'finalPrice', type: 'number' },
     { label: 'Provider Payout (₹)', key: 'providerPayout', type: 'number' },
     { label: 'Travel Cost (₹)', key: 'travelCost', type: 'number' },
     { label: 'Material Cost (₹)', key: 'materialCost', type: 'number' },
@@ -47,8 +49,6 @@ export const exportLeadsToCsv = (leads) => {
     { label: 'Gross Profit (₹)', key: 'grossProfit', type: 'number' },
     { label: 'Payment Status', key: 'paymentStatus', type: 'string' },
     { label: 'Payment Method', key: 'paymentMethod', type: 'string' },
-    { label: 'Repeat Customer (Y/N)', key: 'repeatCustomer', type: 'string' },
-    { label: 'Next Follow-up Date', key: 'nextFollowUpDate', type: 'date' },
     { label: 'Remarks', key: 'remarks', type: 'string' }
   ];
 
